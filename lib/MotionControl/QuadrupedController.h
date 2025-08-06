@@ -40,9 +40,14 @@ struct RobotState {
     uint32_t timestamp;
 };
 
+// Forward declarations
+struct LegPosition;
+enum class LegID : uint8_t;
+
 class QuadrupedController {
 public:
     QuadrupedController();
+    ~QuadrupedController();
     
     // Initialization and configuration
     bool initialize();
@@ -95,10 +100,15 @@ private:
     float step_height;
     float body_height;
     
+    // Private implementation (pImpl pattern)
+    class Impl;
+    Impl* pImpl;
+    
     // Private methods
+    void configureServoLimits();
+    void standingPosition();
     void updateGait();
-    void updateBalance();
-    void updateServos();
+    LegPosition calculateLegPosition(LegID leg, float phase);
     void checkSafety();
 };
 

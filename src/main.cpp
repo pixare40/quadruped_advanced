@@ -16,16 +16,23 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include <EEPROM.h>
+// Use original FNQR library for testing
+#include "FNQR.h"
 
 // Debug configuration
 #ifdef DEBUG_BUILD
   #define DEBUG_PRINT(x) Serial.print(x)
   #define DEBUG_PRINTLN(x) Serial.println(x)
-  #define DEBUG_PRINTF(format, ...) Serial.printf(format, ##__VA_ARGS__)
+  // Arduino AVR doesn't have printf, so use basic print functions
+  #define DEBUG_PRINTF(...) do { \
+    char buffer[128]; \
+    snprintf(buffer, sizeof(buffer), __VA_ARGS__); \
+    Serial.print(buffer); \
+  } while(0)
 #else
   #define DEBUG_PRINT(x)
   #define DEBUG_PRINTLN(x) 
-  #define DEBUG_PRINTF(format, ...)
+  #define DEBUG_PRINTF(...)
 #endif
 
 // System configuration
@@ -34,9 +41,10 @@ namespace Config {
     constexpr uint32_t CONTROL_LOOP_FREQ = 50; // Hz
     constexpr uint32_t CONTROL_LOOP_PERIOD = 1000 / CONTROL_LOOP_FREQ; // ms
     
-    // Hardware pins
+    // Hardware pins - Freenove Quadruped Robot pin mapping
     namespace Pins {
-        constexpr uint8_t SERVO_BASE[] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+        // Servos use pins 22-39 on the Freenove controller board
+        constexpr uint8_t SERVO_BASE[] = {22, 23, 24, 25, 26, 27, 34, 35, 36, 37, 38, 39};
         constexpr uint8_t VOLTAGE_MONITOR = A0;
         constexpr uint8_t STATUS_LED = LED_BUILTIN;
     }
@@ -61,6 +69,9 @@ struct SystemState {
     uint32_t loop_count = 0;
     uint32_t last_comm_time = 0;
 } g_system;
+
+// Use original FNQR robot for testing
+FNQR robot;
 
 // Performance monitoring
 struct PerformanceMetrics {
@@ -149,13 +160,26 @@ void initializeSystem() {
     // Initialize voltage monitoring
     pinMode(Config::Pins::VOLTAGE_MONITOR, INPUT);
     
-    // TODO: Initialize servo controllers
+    // Initialize robot using original FNQR library
+    DEBUG_PRINTLN("Initializing FNQR robot...");
+    robot.Start(false); // Start without communication for basic testing
+    DEBUG_PRINTLN("✅ FNQR robot initialized");
+    
+    // Test basic movements
+    DEBUG_PRINTLN("Setting robot to install state for servo test...");
+    // This should move all servos to 90 degrees
+    // robot.InstallState() is not directly accessible, let's try basic movement
+    
     // TODO: Initialize communication modules (WiFi, RF24)
-    // TODO: Initialize sensor interfaces
+    // TODO: Initialize sensor interfaces  
     // TODO: Load configuration from EEPROM
     
     g_system.battery_voltage = readBatteryVoltage();
     g_system.is_initialized = true;
+    
+    // Activate robot after a short delay
+    delay(2000);
+    g_system.is_active = true;
     
     DEBUG_PRINTLN("✅ System initialization complete!");
     DEBUG_PRINTF("📊 Initial battery voltage: %.2fV\n", g_system.battery_voltage);
@@ -181,9 +205,11 @@ void controlLoop() {
     if (now - last_control_time >= Config::CONTROL_LOOP_PERIOD) {
         uint32_t loop_start = micros();
         
-        // TODO: Update motion control
+        // Update FNQR robot
+        // Note: The FNQR robot handles its own timing internally
+        
         // TODO: Process sensor data
-        // TODO: Execute behavior tree
+        // TODO: Execute behavior tree  
         // TODO: Update communication
         // TODO: Safety monitoring
         
@@ -235,6 +261,46 @@ void loop() {
     updateDiagnostics();
     
     // Communication handling
+    // Simple demo sequence - remove this when implementing proper control
+    static uint32_t demo_timer = 0;
+    static uint8_t demo_state = 0;
+    
+    if (g_system.is_active && millis() - demo_timer > 3000) {
+        demo_timer = millis();
+        
+        switch(demo_state) {
+            case 0:
+                DEBUG_PRINTLN("Demo: Testing ActiveMode");
+                robot.ActiveMode();
+                break;
+            case 1:
+                DEBUG_PRINTLN("Demo: Testing SleepMode");
+                robot.SleepMode();
+                break;
+            case 2:
+                DEBUG_PRINTLN("Demo: Testing CrawlForward");
+                robot.CrawlForward();
+                delay(1000);
+                break;
+            case 3:
+                DEBUG_PRINTLN("Demo: Testing TurnLeft");
+                robot.TurnLeft();
+                delay(1000);
+                break;
+            case 4:
+                DEBUG_PRINTLN("Demo: Testing CrawlBackward");
+                robot.CrawlBackward();
+                delay(1000);
+                break;
+            default:
+                DEBUG_PRINTLN("Demo: Return to ActiveMode");
+                robot.ActiveMode();
+                demo_state = -1;
+                break;
+        }
+        demo_state++;
+    }
+    
     // TODO: Process incoming commands
     // TODO: Send telemetry data
     
@@ -253,11 +319,13 @@ void loop() {
 void emergencyStop() {
     DEBUG_PRINTLN("🚨 EMERGENCY STOP ACTIVATED!");
     
-    // TODO: Stop all servo movements
+    // Emergency stop using FNQR
+    robot.SleepMode();
+    DEBUG_PRINTLN("Robot stopped using SleepMode");
+    g_system.is_active = false;
+    
     // TODO: Send emergency stop signal to all subsystems
     // TODO: Save critical data to EEPROM
-    
-    g_system.is_active = false;
     
     // Flash LED rapidly to indicate emergency state
     while (true) {
