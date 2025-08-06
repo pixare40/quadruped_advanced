@@ -105,4 +105,28 @@ void FNQR::TwistBody(float xMove, float yMove, float zMove, float xRotate, float
     communication.robotAction.TwistBody(Point(xMove, yMove, zMove), Point(xRotate, yRotate, zRotate));
 }
 
+void FNQR::InstallState()
+{
+  if (!communication.commFunction)
+    communication.robotAction.robot.InstallState();
+}
+
+void FNQR::CalibrateState()
+{
+  if (!communication.commFunction)
+    communication.robotAction.robot.CalibrateState();
+}
+
+void FNQR::CalibrateServos()
+{
+  if (!communication.commFunction)
+    communication.robotAction.robot.CalibrateServos();
+}
+
+void FNQR::CalibrateVerify()
+{
+  if (!communication.commFunction)
+    communication.robotAction.robot.CalibrateVerify();
+}
+
 #endif

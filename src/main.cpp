@@ -119,22 +119,22 @@ void updateDiagnostics() {
         // Update performance metrics
         g_metrics.memory_free = getFreeRAM();
         
-        // Battery voltage check
-        if (now - g_system.last_voltage_check >= Config::Timing::VOLTAGE_CHECK_INTERVAL) {
+        // Battery voltage check (reduced frequency during calibration)
+        if (now - g_system.last_voltage_check >= (Config::Timing::VOLTAGE_CHECK_INTERVAL * 5)) {
             g_system.battery_voltage = readBatteryVoltage();
             g_system.last_voltage_check = now;
             
-            DEBUG_PRINTF("Battery: %.2fV, Free RAM: %lu bytes\n", 
-                        g_system.battery_voltage, g_metrics.memory_free);
+            // DEBUG_PRINTF("Battery: %.2fV, Free RAM: %lu bytes\n", 
+            //            g_system.battery_voltage, g_metrics.memory_free);
         }
         
         // Heartbeat LED
         digitalWrite(Config::Pins::STATUS_LED, !digitalRead(Config::Pins::STATUS_LED));
         g_system.last_heartbeat = now;
         
-        DEBUG_PRINTF("Loop #%lu - Max: %lums, Avg: %lums, Min: %lums\n",
-                    g_system.loop_count, g_metrics.loop_time_max, 
-                    g_metrics.loop_time_avg, g_metrics.loop_time_min);
+        // DEBUG_PRINTF("Loop #%lu - Max: %lums, Avg: %lums, Min: %lums\n",
+        //            g_system.loop_count, g_metrics.loop_time_max, 
+        //            g_metrics.loop_time_avg, g_metrics.loop_time_min);
     }
 }
 
@@ -265,41 +265,108 @@ void loop() {
     static uint32_t demo_timer = 0;
     static uint8_t demo_state = 0;
     
-    if (g_system.is_active && millis() - demo_timer > 3000) {
+    // CALIBRATION MODE: Uncomment this section for calibration, comment out demo
+    
+    // === CALIBRATION SEQUENCE ===
+    // This follows the exact Freenove calibration process
+    static bool calibration_complete = false;
+    
+    if (g_system.is_active && !calibration_complete && millis() - demo_timer > 8000) {
         demo_timer = millis();
         
         switch(demo_state) {
             case 0:
-                DEBUG_PRINTLN("Demo: Testing ActiveMode");
-                robot.ActiveMode();
+                Serial.println();
+                Serial.println("=== ASSEMBLY MODE ===");
+                Serial.println("Moving all servos to install position (90 degrees)...");
+                robot.InstallState(); // All servos to 90°
+                Serial.println("Servos are now at 90 degrees and will stay there.");
+                Serial.println("NOW: Position legs horizontally and tighten screws");
+                Serial.println("(As shown in tutorial - keep power ON during assembly)");
+                Serial.println("You have 3 minutes (180 seconds) for assembly...");
+                
+                // Give 3 minutes for assembly
+                for(int i = 180; i > 0; i--) {
+                    if (i % 30 == 0 || i <= 10) {
+                        Serial.print("Assembly time remaining: ");
+                        Serial.print(i);
+                        Serial.println(" seconds");
+                    }
+                    delay(1000);
+                }
+                Serial.println("Assembly time complete! Starting calibration...");
                 break;
             case 1:
-                DEBUG_PRINTLN("Demo: Testing SleepMode");
-                robot.SleepMode();
+                Serial.println();
+                Serial.println("=== CALIBRATION STEP 2 ===");
+                Serial.println("Moving legs to calibration position...");
+                robot.CalibrateState(); // Move legs to calibration position
+                delay(3000); // Wait for movement to complete
+                Serial.println("Moved to calibration position - COMPLETE");
                 break;
             case 2:
-                DEBUG_PRINTLN("Demo: Testing CrawlForward");
-                robot.CrawlForward();
-                delay(1000);
+                Serial.println();
+                Serial.println("=== CALIBRATION STEP 3 ===");
+                Serial.println("Calculating servo offsets...");
+                robot.CalibrateServos(); // Calculate offsets and save to EEPROM
+                Serial.println("Calibration offsets saved to EEPROM - COMPLETE");
+                delay(2000);
                 break;
             case 3:
-                DEBUG_PRINTLN("Demo: Testing TurnLeft");
-                robot.TurnLeft();
-                delay(1000);
-                break;
-            case 4:
-                DEBUG_PRINTLN("Demo: Testing CrawlBackward");
-                robot.CrawlBackward();
-                delay(1000);
+                Serial.println();
+                Serial.println("=== CALIBRATION STEP 4 ===");
+                Serial.println("Testing calibrated positions...");
+                robot.CalibrateVerify(); // Verify calibration
+                Serial.println("Calibration verification complete!");
+                Serial.println();
+                Serial.println("*** CALIBRATION FINISHED ***");
+                Serial.println("Robot is now calibrated and ready to use!");
+                calibration_complete = true;
                 break;
             default:
-                DEBUG_PRINTLN("Demo: Return to ActiveMode");
-                robot.ActiveMode();
-                demo_state = -1;
+                calibration_complete = true;
                 break;
         }
         demo_state++;
     }
+    
+    
+    // // === NORMAL DEMO MODE ===
+    // if (g_system.is_active && millis() - demo_timer > 3000) {
+    //     demo_timer = millis();
+        
+    //     switch(demo_state) {
+    //         case 0:
+    //             DEBUG_PRINTLN("Demo: Testing ActiveMode");
+    //             robot.ActiveMode();
+    //             break;
+    //         case 1:
+    //             DEBUG_PRINTLN("Demo: Testing SleepMode");
+    //             robot.SleepMode();
+    //             break;
+    //         case 2:
+    //             DEBUG_PRINTLN("Demo: Testing CrawlForward");
+    //             robot.CrawlForward();
+    //             delay(1000);
+    //             break;
+    //         case 3:
+    //             DEBUG_PRINTLN("Demo: Testing TurnLeft");
+    //             robot.TurnLeft();
+    //             delay(1000);
+    //             break;
+    //         case 4:
+    //             DEBUG_PRINTLN("Demo: Testing CrawlBackward");
+    //             robot.CrawlBackward();
+    //             delay(1000);
+    //             break;
+    //         default:
+    //             DEBUG_PRINTLN("Demo: Return to ActiveMode");
+    //             robot.ActiveMode();
+    //             demo_state = -1;
+    //             break;
+    //     }
+    //     demo_state++;
+    // }
     
     // TODO: Process incoming commands
     // TODO: Send telemetry data

@@ -152,6 +152,34 @@ public:
   * -----------------------------------------------------------------------------------------------*/
   void TwistBody(float xMove, float yMove, float zMove, float xRotate, float yRotate, float zRotate);
 
+ /*
+  * Brief     Set robot to installation state (all servos to 90°)
+  * Param     None
+  * Retval    None
+  * -----------------------------------------------------------------------------------------------*/
+  void InstallState();
+
+ /*
+  * Brief     Set robot to calibration state (legs to calibration position)
+  * Param     None
+  * Retval    None
+  * -----------------------------------------------------------------------------------------------*/
+  void CalibrateState();
+
+ /*
+  * Brief     Calibrate servos (calculate and save offsets)
+  * Param     None
+  * Retval    None
+  * -----------------------------------------------------------------------------------------------*/
+  void CalibrateServos();
+
+ /*
+  * Brief     Verify calibration (test calibrated positions)
+  * Param     None
+  * Retval    None
+  * -----------------------------------------------------------------------------------------------*/
+  void CalibrateVerify();
+
 private:
   Communication communication;
 };
