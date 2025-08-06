@@ -205,7 +205,7 @@ void controlLoop() {
  */
 void setup() {
     // Disable watchdog timer if it was enabled by bootloader
-    wdt_disable();
+    // wdt_disable(); // Commented out for now, add #include <avr/wdt.h> if needed
     
     // Initialize all systems
     initializeSystem();
